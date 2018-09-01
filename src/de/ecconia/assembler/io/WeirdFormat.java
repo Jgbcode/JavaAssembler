@@ -121,7 +121,7 @@ public class WeirdFormat
 		{
 			if(c == ' ')
 			{
-				throw new FileParseException("A line may start with '\t's and must not have a space at the beginning of the key.", line);
+				throw new FileParseException("A line may start with '\\t's and must not have a space at the beginning of the key.", line);
 			}
 			else if(c == '\t')
 			{

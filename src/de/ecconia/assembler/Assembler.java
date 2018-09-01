@@ -15,6 +15,7 @@ import de.ecconia.assembler.instruction.InstructionParseException;
 import de.ecconia.assembler.io.FileParseException;
 import de.ecconia.assembler.io.FileWrap;
 import de.ecconia.assembler.is.IS;
+import de.ecconia.assembler.preprocessor.Preprocessor;
 
 public class Assembler
 {
@@ -30,7 +31,7 @@ public class Assembler
 		//Get the lines of the Codefile
 		String filepathCode = args[0];
 		
-		FileWrap codeFile = new FileWrap(filepathCode);
+		FileWrap codeFile = new FileWrap(filepathCode.trim());
 		if(!codeFile.exists())
 		{
 			die("Codefile does not exist. File: " + filepathCode);
@@ -46,7 +47,7 @@ public class Assembler
 			die("Add a line before the code: \";IS<isname>\" where <isname> is the name of the IS file without the ending \".isa\".");
 		}
 		
-		FileWrap isFile = new FileWrap(filepathIS + ".isa");
+		FileWrap isFile = new FileWrap(filepathIS.trim() + ".isa");
 		if(!isFile.exists())
 		{
 			die("IS does not exist. File: " + filepathIS + ".isa");
@@ -65,8 +66,32 @@ public class Assembler
 		}
 		System.out.println("ISA: " + filepathIS);
 		
+		List<InstructionLine> linesPreprocess = null;
+		try
+		{
+			linesPreprocess = Preprocessor.runPreprocessor(linesCode, filepathCode);
+		}
+		catch (FileParseException e)
+		{
+			//Debug
+			e.printStackTrace();
+			
+			System.out.println("Error during preprocessor execution:");
+			die(e.getMessage());
+		}
+		
+		// Preprocessor debugging
+		System.out.println("========== BEGIN PREPROCESSOR OUTPUT ==========");
+		for(InstructionLine line : linesPreprocess) {
+			String label = line.getLabel();
+			if(!label.isEmpty())
+				System.out.print(label + ": ");
+			System.out.println(line.getContent());
+		}
+		System.out.println("========== END PREPROCESSOR OUTPUT ==========");
+		
 		//start assembling
-		List<String> binaryLines = assemble(linesCode, is);
+		List<String> binaryLines = assemble(linesPreprocess, is);
 		
 		System.out.println("Binary code:");
 		for(String bin : binaryLines)
@@ -135,64 +160,33 @@ public class Assembler
 		return null;
 	}
 
-	public static List<String> assemble(List<String> lines, IS is)
+	public static List<String> assemble(List<InstructionLine> iLines, IS is)
 	{
-		List<InstructionLine> iLines = new ArrayList<>();
-		//Add metadata to each line. (Linenumber)
-		for(int i = 0; i < lines.size(); i++)
+		// Extract labels
+		Map<String, Integer> labels = new HashMap<>();
+		for(InstructionLine label : iLines)
 		{
-			iLines.add(new InstructionLine(lines.get(i), i+1));
-		}
-		
-		//Abort if line starts with space instead of tabs
-		for(InstructionLine line : iLines)
-		{
-			if(line.getRawContent().startsWith(" "))
-			{
-				die("Lines must not start with space. " + line);
+			String l = label.getLabel();
+			if(!l.isEmpty()) {
+				Integer oldAddr = labels.put(l, label.getAddress());
+				
+				if(oldAddr != null)
+					die("Duplicated label - " + label);
 			}
 		}
-
+		
 		//Filter lines without relevant data. (Only comments, or empty lines)
 		iLines = iLines.stream().filter(iLine -> iLine.hasContent()).collect(Collectors.toList());
 		
 		//Seperate labels from instructions. Also attatch final addresses.
 		//TODO: More aliases friendly. Difficult to add them now.
-		List<InstructionLine> labelLines = new ArrayList<>();
-		List<InstructionLine> instructions = new ArrayList<>();
-		
-		int i = 0;
-		for(InstructionLine line : iLines)
-		{
-			line.setAddress(i);
-			if(line.isLabel())
-			{
-				labelLines.add(line);
-				//Check if label contains space or tab
-				if(line.getContent().matches(".*[\t ].*"))
-				{
-					die("Label contains spaces or tabs. " + line);
-				}
-			}
-			else
-			{
-				instructions.add(line);
-				i += 1;
-			}
-		}
-		
-		Map<String, Integer> labels = new HashMap<>();
-		for(InstructionLine label : labelLines)
-		{
-			labels.put(label.getContent(), label.getAddress());
-		}
 		
 		//Start parsing instructions.
 		List<String> binaryLines = new ArrayList<>();
 		
-		for(InstructionLine line : instructions)
+		for(InstructionLine line : iLines)
 		{
-			String parts[] = line.getContent().split(" ");
+			String parts[] = line.getContent().split("\\s*(,|\\s)\\s*");
 			String operation = parts[0];
 
 			if(!is.isInstruction(operation))
@@ -216,6 +210,7 @@ public class Assembler
 					}
 					foundLabels.put(labelToFind, label);
 				}
+				
 				instruction.setLabels(foundLabels, line.getAddress());
 			}
 			catch (InstructionParseException e)
