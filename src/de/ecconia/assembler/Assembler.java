@@ -35,6 +35,8 @@ public class Assembler
 			die("Codefile does not exist. File: " + filepathCode);
 		}
 		
+		System.out.println("Reading code file: " + filepathCode);
+		
 		List<String> linesCode = codeFile.lines();
 		
 		//Get the lines of the ISFile
@@ -110,21 +112,21 @@ public class Assembler
 		}
 		System.out.println();
 		
-		System.out.println("Writing to binary file.");
 		String filename;
 		String torcher;
-		if(filepathCode.indexOf('.') != -1)
+		if(filepathCode.lastIndexOf('.') != -1)
 		{
-			filename = filepathCode.substring(0, filepathCode.indexOf('.'));
+			filename = filepathCode.substring(0, filepathCode.lastIndexOf('.'));
 		}
 		else
 		{
 			filename = filepathCode;
 		}
-		torcher = filename += ".torch";
+		torcher = filename + ".torch";
 		filename += ".dat";
 		
 		File outputFile = new File(filename);
+		System.out.println("Writing to binary file:\n");
 		try
 		{
 			outputFile.createNewFile();
@@ -142,9 +144,11 @@ public class Assembler
 			die("Couldn't write in file: " + filename);
 		}
 		
-		System.out.println("Writing to torcher compressed file.");
 		String chars = convertToTorcher(binaryLines);
 		File torcherFile = new File(torcher);
+		System.out.println("Compressed code:");
+		System.out.println(chars);
+		System.out.println("Writing to torcher compressed file.\n");
 		try
 		{
 			torcherFile.createNewFile();
