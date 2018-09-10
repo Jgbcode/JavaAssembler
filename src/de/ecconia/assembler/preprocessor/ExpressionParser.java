@@ -2,6 +2,8 @@ package de.ecconia.assembler.preprocessor;
 
 import java.util.HashMap;
 
+import org.apache.commons.text.StringEscapeUtils;
+
 public class ExpressionParser {
 	
 	// Hashmap of operators and there order of operations priority, higher priority gets executed first
@@ -30,7 +32,7 @@ public class ExpressionParser {
 	}
 	
 	// The number of priority layers
-	private static final int order_of_op_layers = 6;
+	private static final int order_of_op_layers = 11;
 	
 	// Returns integer from string
 	// Hex values are prefixed with "0x"
@@ -56,14 +58,34 @@ public class ExpressionParser {
 			radix = 8;
 			num = num.substring(0, num.length() - 1);
 		}
-		else if(num.startsWith("'") && num.endsWith("'")) {
-			if(num.length() == 3)
-				return (int)num.charAt(1);
-			else
-				throw new NumberFormatException("Illegal character conversion");
+		else if(StringHelper.isCompleteString(num)) {
+			String str = StringEscapeUtils.unescapeJava(num.substring(1, num.length() - 1));
+
+			int result = 0;
+			int count = 0;
+			for(int i = 0; i < str.length(); i++) {
+				int temp = (int) str.charAt(i);
+
+				result += temp << (8 * count);
+
+				if(temp > 255)
+					count += 2;
+				else
+					count += 1;
+
+				if(count > 4)
+					throw new NumberFormatException("32-bit limit exceeded while parsing string: " + str);
+			}
+				
+			return result;
 		}
 		
-		return Integer.parseInt(num, radix);
+		try {
+			return Integer.parseInt(num, radix);
+		}
+		catch(Exception e) {
+			throw new NumberFormatException("Unrecognized input string: " + num);
+		}
 	}
 	
 	// Evaluates a simple expression given two inputs and an operator

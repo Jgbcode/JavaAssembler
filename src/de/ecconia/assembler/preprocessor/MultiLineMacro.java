@@ -1,12 +1,15 @@
 package de.ecconia.assembler.preprocessor;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import de.ecconia.assembler.InstructionLine;
 import de.ecconia.assembler.io.FileParseException;
 
 public class MultiLineMacro extends Macro {
 
+	private static int expansionCount = 0;
+	
 	public MultiLineMacro(String name, int numParameters, String expansion, InstructionLine line) throws FileParseException {
 		super(name, expansion, line);
 		super.parameters = new String[numParameters];
@@ -43,7 +46,31 @@ public class MultiLineMacro extends Macro {
 		for(int i = args.size() - 1; i >= 0; i--) {
 			expand = expand.replace("%" + (i + 1), args.get(i));
 		}
+		expand = expand.replace("%%", "..@");
 		
+		HashMap<String, String> swap = new HashMap<String, String>();
+		String[] split = StringHelper.splitNewline(expand);
+		for(String s : split) {
+			int i = StringHelper.indexOfColon(s);
+			
+			if(i >= 0) {
+				String label = s.substring(0, i).trim();
+				
+				if(label.startsWith("..@")) {
+					if(!StringHelper.isLegalVarName(label.substring(3)))
+						throw new FileParseException("Illegal label name \"" + label + "\"", line);
+					
+					if(swap.containsKey(label))
+						throw new FileParseException("Duplicate label name \"" + label + "\"", line);
+					
+					swap.put(label, "..@" + expansionCount + "." + label.substring(3));
+				}
+			}
+		}
+		
+		expand = StringHelper.swap(expand, swap);
+		
+		expansionCount++;
 		return expand;
 	}
 }

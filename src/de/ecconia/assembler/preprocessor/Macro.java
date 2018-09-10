@@ -28,6 +28,10 @@ public class Macro {
 	}
 	
 	public Macro(String definition, String expansion, InstructionLine line) throws FileParseException {
+		this(definition, expansion, line, true);
+	}
+	
+	public Macro(String definition, String expansion, InstructionLine line, boolean checkName) throws FileParseException {
 		this.line = line;
 		
 		int index1 = definition.indexOf('(');
@@ -50,7 +54,7 @@ public class Macro {
 			this.expansion = expansion;
 		}
 		
-		if(!StringHelper.isLegalVarName(this.name))
+		if(checkName && !StringHelper.isLegalVarName(this.name))
 			throw new FileParseException("Illegal macro name: " + name, line);
 		
 		HashSet<String> duplicate = new HashSet<String>();

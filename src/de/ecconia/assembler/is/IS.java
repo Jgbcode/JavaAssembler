@@ -1,9 +1,11 @@
 package de.ecconia.assembler.is;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import de.ecconia.assembler.InstructionLine;
 import de.ecconia.assembler.io.FileParseException;
 import de.ecconia.assembler.io.WeirdFormat;
 
@@ -230,6 +232,29 @@ public class IS
 				}
 			}
 		}
+	}
+	
+	public static List<InstructionLine> getDefaultInclude(List<String> lines, String file) {
+		int start = -1;
+		
+		for(int i = 0; i < lines.size(); i++) {
+			if(lines.get(i).startsWith("%include")) {
+				lines.remove(i);
+				start = i;
+				break;
+			}
+		}
+		
+		if(start == -1)
+			return new ArrayList<InstructionLine>();
+		
+		ArrayList<InstructionLine> ret = new ArrayList<InstructionLine>();
+		for(int i = start; i < lines.size();) {
+			ret.add(new InstructionLine(lines.get(i), i, file));
+			lines.remove(i);
+		}
+		
+		return ret;
 	}
 	
 	private final Map<String, InstructionAlias> instructions;

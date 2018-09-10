@@ -5,9 +5,9 @@ import java.util.ArrayList;
 import de.ecconia.assembler.io.FileParseException;
 import de.ecconia.assembler.preprocessor.StringHelper;
 
-public class InstructionLine
+public class InstructionLine implements Cloneable
 {
-	private final String rawContent;
+	protected String rawContent;
 	private final int line;
 	private final String file;
 	
@@ -28,7 +28,7 @@ public class InstructionLine
 			content = content.substring(0, commentStart);
 		}
 		
-		int labelIndex = content.indexOf(":");
+		int labelIndex = StringHelper.indexOfColon(content);
 		if(labelIndex != -1) {
 			label = content.substring(0, labelIndex).trim();
 			content = content.substring(labelIndex + 1).trim();
@@ -114,7 +114,7 @@ public class InstructionLine
 	
 	// Splits format: label: opcode arg1, arg2, arg3
 	// Result String[] {label, opcode, arg1, arg2, arg3}
-	public String[] splitOnCommas() throws FileParseException {
+	public String[] splitOnCommas(int k) throws FileParseException {
 		if(content.isEmpty())
 			return new String[]{label, content};
 		
@@ -129,9 +129,14 @@ public class InstructionLine
 			split.add(content.substring(0, i));
 			split.addAll(StringHelper.splitOn(content.substring(i), ','));
 			
-			String[] result = new String[split.size()];
-			for(int j = 0; j < split.size(); j++)
+			int resultSize = (k > 0) ? k : split.size();
+			String[] result = new String[resultSize];
+			int j;
+			for(j = 0; j != k && j < split.size(); j++)
 				result[j] = split.get(j);
+			
+			for(; j < split.size(); j++)
+				result[k] += " " + split.get(j);
 			
 			return result;
 		}
@@ -142,7 +147,7 @@ public class InstructionLine
 	
 	// Splits format: label: opcode arg1 arg2 arg3
 	// Result String[] {label, opcode, arg1, arg2, arg3}
-	public String[] splitOnSpaces() throws FileParseException {
+	public String[] splitOnSpaces(int i) throws FileParseException {
 		if(content.isEmpty())
 			return new String[]{label, content};
 		
@@ -152,14 +157,25 @@ public class InstructionLine
 			
 			split.addAll(StringHelper.splitOnWhitespace(content.trim()));
 			
-			String[] result = new String[split.size()];
-			for(int j = 0; j < split.size(); j++)
+			int resultSize = (i > 0) ? Math.min(i, split.size()) : split.size();
+			String[] result = new String[resultSize];
+			int j;
+			for(j = 0; j != i && j < split.size(); j++)
 				result[j] = split.get(j);
+			
+			for(; j < split.size(); j++)
+				result[resultSize - 1] += " " + split.get(j);
 			
 			return result;
 		}
 		catch(Exception e) {
 			throw new FileParseException("Error parsing line", this);
 		}
+	}
+	
+	@Override
+	public Object clone() throws CloneNotSupportedException {
+		InstructionLine clone = (InstructionLine)super.clone();
+		return clone;
 	}
 }

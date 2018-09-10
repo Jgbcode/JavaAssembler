@@ -36,14 +36,11 @@ public class ExpressionHandler {
 		expr = expr.trim();
 		expr = bracketHandler(expr, line);
 		
-		if((expr.startsWith("\"") && expr.endsWith("\"")) || (expr.startsWith("'") && expr.endsWith("'")))
-			return expr;
-		
 		int i1 = expr.length() - 1;
 		int i2 = expr.length() - 1;
 		
 		while(i2 >= 0) {
-			if(StringHelper.isLegalVarChar(expr.charAt(i2))) {
+			if(StringHelper.isLegalVarChar(expr.charAt(i2)) && !StringHelper.isInString(expr, i2)) {
 				i1 = i2 + 1;
 				if(i1 < expr.length() && expr.charAt(i1) == '(') {
 					int paraDepth = 1;
@@ -64,13 +61,10 @@ public class ExpressionHandler {
 				if(mac instanceof MultiLineMacro) {
 					throw new FileParseException("Cannot expand multi-line macro inside of expression", line);
 				}
-				else if(mac != null) {
+				else if(mac != null && !stack.contains(key)) {
+					stack.add(key);
 					String expansion = mac.evaluateExpansion(expr.substring(i2 + 1, i1), line);
-					
-					if(!stack.contains(key)) {
-						stack.add(key);
-						expr = expr.substring(0, i2 + 1) + expand(expansion, line) + expr.substring(i1);
-					}
+					expr = expr.substring(0, i2 + 1) + expand(expansion, line) + expr.substring(i1);
 					stack.remove(key);
 				}
 			}

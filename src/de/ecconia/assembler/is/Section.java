@@ -1,11 +1,8 @@
 package de.ecconia.assembler.is;
 
-import de.ecconia.assembler.instruction.LabelSeg;
 import de.ecconia.assembler.instruction.NumberSeg;
 import de.ecconia.assembler.instruction.OpcodeSeg;
-import de.ecconia.assembler.instruction.RegSeg;
 import de.ecconia.assembler.instruction.Segment;
-import de.ecconia.assembler.instruction.LabelSeg.JumpType;
 
 public class Section
 {
@@ -41,19 +38,12 @@ public class Section
 		case 'o':
 			seg = new OpcodeSeg(bits);
 			break;
-		case 'l':
-			seg = new LabelSeg(bits);
-			((LabelSeg) seg).setJumpType(type.charAt(1) == 'a' ? JumpType.ABSOLUTE : JumpType.RELATIVE);
-			break;
 		case 'n':
 			seg = new NumberSeg(bits);
 			break;
 		case 'a':
 		case 'b':
 		case 'c':
-		case 'r':
-			seg = new RegSeg(bits);
-			break;
 		case '0':
 			seg = new Segment(bits);
 			String constant = "";

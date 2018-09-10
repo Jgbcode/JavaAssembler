@@ -4,10 +4,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import de.ecconia.assembler.instruction.Instruction;
@@ -24,7 +22,7 @@ public class Assembler
 	{
 		if(args.length < 1)
 		{
-			System.out.println("Provide the filepath as argument.");
+			System.err.println("Provide the filepath as argument.");
 			System.exit(0);
 		}
 		
@@ -43,7 +41,7 @@ public class Assembler
 		String filepathIS = getISType(linesCode);
 		if(filepathIS == null)
 		{
-			System.out.println("Assemblercode does not specify instruction set.");
+			System.err.println("Assemblercode does not specify instruction set.");
 			die("Add a line before the code: \";IS<isname>\" where <isname> is the name of the IS file without the ending \".isa\".");
 		}
 		
@@ -55,13 +53,16 @@ public class Assembler
 		
 		//Create IS
 		IS is = null;
+		List<InstructionLine> isIncludes = null;
 		try
 		{
-			is = IS.getISFromLines(isFile.lines());
+			List<String> temp = isFile.lines();
+			isIncludes = IS.getDefaultInclude(temp, filepathIS);
+			is = IS.getISFromLines(temp);
 		}
 		catch (FileParseException e)
 		{
-			System.out.println("Error parsing ISA file format:");
+			System.err.println("Error parsing ISA file format:");
 			die(e.getMessage());
 		}
 		System.out.println("ISA: " + filepathIS);
@@ -69,29 +70,38 @@ public class Assembler
 		List<InstructionLine> linesPreprocess = null;
 		try
 		{
-			linesPreprocess = Preprocessor.runPreprocessor(linesCode, filepathCode);
+			linesPreprocess = Preprocessor.runPreprocessor(linesCode, filepathCode, isIncludes);
 		}
 		catch (FileParseException e)
 		{
 			//Debug
 			e.printStackTrace();
 			
-			System.out.println("Error during preprocessor execution:");
+			System.err.println("Error during preprocessor execution:");
 			die(e.getMessage());
 		}
 		
-		// Preprocessor debugging
+		// Preprocessor info
 		System.out.println("========== BEGIN PREPROCESSOR OUTPUT ==========");
 		for(InstructionLine line : linesPreprocess) {
 			String label = line.getLabel();
 			if(!label.isEmpty())
-				System.out.print(label + ": ");
-			System.out.println(line.getContent());
+				System.out.println(label + ": ");
+			if(line.hasContent())
+				System.out.println("\t" + line.getContent());
 		}
 		System.out.println("========== END PREPROCESSOR OUTPUT ==========");
 		
 		//start assembling
-		List<String> binaryLines = assemble(linesPreprocess, is);
+		List<String> binaryLines = null;
+		
+		try {
+			binaryLines = assemble(linesPreprocess, is);
+		}
+		catch(FileParseException e) {
+			System.err.println("Error during assembler execution:");
+			die(e.getMessage());
+		}
 		
 		System.out.println("Binary code:");
 		for(String bin : binaryLines)
@@ -100,8 +110,9 @@ public class Assembler
 		}
 		System.out.println();
 		
-		System.out.println("Printing in file.");
+		System.out.println("Writing to binary file.");
 		String filename;
+		String torcher;
 		if(filepathCode.indexOf('.') != -1)
 		{
 			filename = filepathCode.substring(0, filepathCode.indexOf('.'));
@@ -110,6 +121,7 @@ public class Assembler
 		{
 			filename = filepathCode;
 		}
+		torcher = filename += ".torch";
 		filename += ".dat";
 		
 		File outputFile = new File(filename);
@@ -124,12 +136,57 @@ public class Assembler
 				fw.write("\n");
 			}
 			fw.close();
+		}
+		catch (IOException e)
+		{
+			die("Couldn't write in file: " + filename);
+		}
+		
+		System.out.println("Writing to torcher compressed file.");
+		String chars = convertToTorcher(binaryLines);
+		File torcherFile = new File(torcher);
+		try
+		{
+			torcherFile.createNewFile();
+			
+			FileWriter fw = new FileWriter(torcherFile);
+			fw.write(chars);
+			fw.close();
 			System.out.println("done.");
 		}
 		catch (IOException e)
 		{
-			System.out.println("Coulnd't write in file: " + filename);
+			die("Couldn't write in file: " + torcher);
 		}
+	}
+	
+	public static String convertToTorcher(List<String> lines) {
+		LinkedList<Boolean> bits = new LinkedList<Boolean>();
+		for(String s : lines) {
+			for(char c : s.toCharArray()) {
+				if(c == '1')
+					bits.add(true);
+				else if(c == '0')
+					bits.add(false);
+			}
+		}
+		
+		String result = "";
+		while(!bits.isEmpty()) {
+			// 200 characters per line
+			for(int i = 0; i < 200 && !bits.isEmpty(); i++) {
+				int num = 0;
+				for(int j = 0; j < 15 && !bits.isEmpty(); j++) {
+					if(bits.removeFirst())
+						num += 1 << j;
+				}
+				
+				result += (char) (num + 256);
+			}
+			result += '\n';
+		}
+		
+		return result;
 	}
 	
 	public static String getISType(List<String> lines)
@@ -160,21 +217,8 @@ public class Assembler
 		return null;
 	}
 
-	public static List<String> assemble(List<InstructionLine> iLines, IS is)
+	public static List<String> assemble(List<InstructionLine> iLines, IS is) throws FileParseException
 	{
-		// Extract labels
-		Map<String, Integer> labels = new HashMap<>();
-		for(InstructionLine label : iLines)
-		{
-			String l = label.getLabel();
-			if(!l.isEmpty()) {
-				Integer oldAddr = labels.put(l, label.getAddress());
-				
-				if(oldAddr != null)
-					die("Duplicated label - " + label);
-			}
-		}
-		
 		//Filter lines without relevant data. (Only comments, or empty lines)
 		iLines = iLines.stream().filter(iLine -> iLine.hasContent()).collect(Collectors.toList());
 		
@@ -191,32 +235,17 @@ public class Assembler
 
 			if(!is.isInstruction(operation))
 			{
-				die("Instruction in line " + line.getLineNumber() + " is not defined: " + operation);
+				throw new FileParseException("Instruction \"" + operation + "\" not defined", line);
 			}
 			
 			Instruction instruction = null;
 			try
 			{
 				instruction = is.getFormat(operation).parseInstruction(parts, is.getOpcode(operation));
-				
-				Set<String> labelsToFind = instruction.getLables();
-				Map<String, Integer> foundLabels = new HashMap<>();
-				for(String labelToFind : labelsToFind)
-				{
-					Integer label = labels.get(labelToFind);
-					if(label == null)
-					{
-						die("Couldn't find label: " + labelToFind);
-					}
-					foundLabels.put(labelToFind, label);
-				}
-				
-				instruction.setLabels(foundLabels, line.getAddress());
 			}
 			catch (InstructionParseException e)
 			{
-				System.out.println("Could not parse instruction \"" + line.getContent() + "\" at line " + line.getLineNumber());
-				die(e.getMessage());
+				throw new FileParseException("Failed to parse instruction: " + e.getMessage(), line);
 			}
 			
 			System.out.println(line.getAddress() + ": " + line.getContent() + " ->");
@@ -238,7 +267,7 @@ public class Assembler
 
 	public static void die(String message)
 	{
-		System.out.println(message);
+		System.err.println(message);
 		//Fuuu lets just use 1, yes there was an error
 		System.exit(1);
 	}
