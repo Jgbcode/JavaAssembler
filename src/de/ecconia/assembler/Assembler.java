@@ -47,7 +47,7 @@ public class Assembler
 			die("Add a line before the code: \";IS<isname>\" where <isname> is the name of the IS file without the ending \".isa\".");
 		}
 		
-		FileWrap isFile = new FileWrap(filepathIS.trim() + ".isa");
+		FileWrap isFile = new FileWrap(codeFile.getFile().getParent() + File.separator + filepathIS.trim() + ".isa");
 		if(!isFile.exists())
 		{
 			die("IS does not exist. File: " + filepathIS + ".isa");

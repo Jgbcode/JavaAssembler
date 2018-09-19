@@ -15,7 +15,6 @@ public class FileWrap
 	public FileWrap(String filepath)
 	{
 		file = new File(filepath);
-		System.out.println(file.getAbsolutePath());
 	}
 	
 	public boolean exists()
@@ -49,6 +48,10 @@ public class FileWrap
 		}
 		
 		return lines;
+	}
+	
+	public File getFile() {
+		return file;
 	}
 	
 	@SuppressWarnings("serial")
