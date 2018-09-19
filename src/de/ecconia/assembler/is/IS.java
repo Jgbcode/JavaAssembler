@@ -114,11 +114,11 @@ public class IS
 		{
 			if("Version".equals(w.getKey()))
 			{
-				if("1".equals(w.getValue()))
+				if("2".equals(w.getValue()))
 				{
 					return;
 				}
-				throw new FileParseException("Expected isa version 1, found version: " + w.getValue());
+				throw new FileParseException("Expected isa version 2, found version: " + w.getValue());
 			}
 		}
 		
