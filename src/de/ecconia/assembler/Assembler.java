@@ -92,11 +92,12 @@ public class Assembler
 			if(line.hasContent())
 				System.out.println("\t" + line.getContent());
 		}
-		System.out.println("========== END PREPROCESSOR OUTPUT ==========");
+		System.out.println("=========== END PREPROCESSOR OUTPUT ===========\n\n");
 		
 		//start assembling
 		List<String> binaryLines = null;
 		
+		System.out.println("========== BEGIN ASSEMBLER OUTPUT ==========");
 		try {
 			binaryLines = assemble(linesPreprocess, is);
 		}
@@ -104,13 +105,14 @@ public class Assembler
 			System.err.println("Error during assembler execution:");
 			die(e.getMessage());
 		}
+		System.out.println("=========== END ASSEMBLER OUTPUT ===========\n\n");
 		
-		System.out.println("Binary code:");
+		System.out.println("========== BEGIN BINARY OUTPUT ==========");
 		for(String bin : binaryLines)
 		{
 			System.out.println(bin);
 		}
-		System.out.println();
+		System.out.println("=========== END BINARY OUTPUT ===========\n\n");
 		
 		String filename;
 		String torcher;
@@ -126,7 +128,6 @@ public class Assembler
 		filename += ".dat";
 		
 		File outputFile = new File(filename);
-		System.out.println("Writing to binary file:\n");
 		try
 		{
 			outputFile.createNewFile();
@@ -146,9 +147,9 @@ public class Assembler
 		
 		String chars = convertToTorcher(binaryLines);
 		File torcherFile = new File(torcher);
-		System.out.println("Compressed code:");
+		System.out.println("========== BEGIN TORCHER COMPRESSED OUTPUT ==========");
 		System.out.println(chars);
-		System.out.println("Writing to torcher compressed file.\n");
+		System.out.println("=========== END TORCHER COMPRESSED OUTPUT ===========\n\n");
 		try
 		{
 			torcherFile.createNewFile();
