@@ -107,6 +107,7 @@ public class Preprocessor {
 				processMacroDirective(lines, i);
 				i--;
 				break;
+			case "%ifdef":
 			case "%if":
 				processIfDirective(lines, i);
 				i--;
@@ -394,18 +395,18 @@ public class Preprocessor {
 			throw new FileParseException("Illegal if directive format", lines.get(index));
 		
 		if(sections[1].equals("%else") && sections.length != 2) {
-			System.out.println(sections.length);
-			for(String s : sections)
-				System.out.println(s);
 			throw new FileParseException("Illegal else directive format", lines.get(index));
 		}
 		
 		String cond = "1";
-		if(!sections[1].equals("%else")) {
+		if(sections[1].equals("%ifdef")) {
+			cond = (context.current.containsKey(Macro.getKey(sections[2]))) ? "1" : "0";
+		}
+		else if(!sections[1].equals("%else")) {
 			// Evaluate condition
 			cond = ExpressionHandler.evaluate(ExpressionHandler.expand(sections[2], lines.get(index)), lines.get(index));
 		}
-			
+		
 		// Run if the statement is false
 		if(cond.equals("0")) {
 			int i = index;
@@ -417,6 +418,7 @@ public class Preprocessor {
 					throw new FileParseException("Run away if declaration", lines.get(index));
 				instr = lines.get(i).splitOnSpaces(-1)[1];
 				switch(instr) {
+				case "%ifdef":
 				case "%if":
 					ifDepth++;
 					break;
@@ -424,7 +426,7 @@ public class Preprocessor {
 					ifDepth--;
 					break;
 				}
-			} while(ifDepth > 1 || (!instr.equals("%else") && !instr.equals("%elseif") && !instr.equals("%endif")));
+			} while(ifDepth > 1 || (!instr.equals("%else") && !instr.equals("%elif") && !instr.equals("%endif")));
 			
 			// Remove statements inside if which evaluated to 0
 			for(int j = index; j < i; j++)
@@ -448,6 +450,7 @@ public class Preprocessor {
 					throw new FileParseException("Run away if declaration", line);
 				instr = lines.get(i).splitOnSpaces(-1)[1];
 				switch(instr) {
+				case "%ifdef":
 				case "%if":
 					ifDepth++;
 					break;
@@ -455,7 +458,7 @@ public class Preprocessor {
 					ifDepth--;
 					break;
 				}
-			} while(ifDepth > 1 || (!instr.equals("%else") && !instr.equals("%elseif") && !instr.equals("%endif")));	
+			} while(ifDepth > 1 || (!instr.equals("%else") && !instr.equals("%elif") && !instr.equals("%endif")));	
 		
 			ifDepth = 1;
 			do {
@@ -463,6 +466,7 @@ public class Preprocessor {
 					throw new FileParseException("Run away if declaration", line);
 				instr = lines.get(i).splitOnSpaces(-1)[1];
 				switch(instr) {
+				case "%ifdef":
 				case "%if":
 					ifDepth++;
 					break;
